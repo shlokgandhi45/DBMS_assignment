@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DBMS Normalization Tool</title>
+  <meta name="description" content="Compute attribute closure, find candidate keys, and decompose relations into 2NF, 3NF, and BCNF — step by step." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════ HEADER ════════════════════════════════ -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-brand">
+        <div class="header-icon" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.9"/>
+            <rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.6"/>
+            <rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.6"/>
+            <rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.3"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="header-title">DBMS Normalization Tool</h1>
+          <p class="header-subtitle">Attribute Closure · Candidate Keys · 2NF · 3NF · BCNF</p>
+        </div>
+      </div>
+      <div class="header-badge">Academic Project</div>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════ ERROR BANNER ════════════════════════════ -->
+  <div id="error-banner" class="error-banner" role="alert" aria-live="polite" hidden>
+    <div class="container error-banner-inner">
+      <span class="error-banner-icon" aria-hidden="true">⚠</span>
+      <span id="error-banner-message" class="error-banner-text"></span>
+      <button id="error-banner-close" class="error-banner-close" aria-label="Dismiss error">✕</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ MAIN ═══════════════════════════════════ -->
+  <main class="container main-content">
+
+    <!-- ─────────────────────────── INPUT PANEL ─────────────────────────── -->
+    <section class="card input-panel" aria-labelledby="input-heading">
+      <div class="card-header">
+        <h2 id="input-heading" class="card-title">
+          <span class="card-title-icon" aria-hidden="true">📥</span>
+          Input Configuration
+        </h2>
+        <button id="btn-clear" class="btn btn-clear" type="button">Clear Results</button>
+      </div>
+
+      <div class="input-grid">
+        <!-- Schema -->
+        <div class="form-group form-group--full">
+          <label class="form-label" for="schema-input">
+            Relation Schema
+            <span class="form-hint">Format: RelationName(Attr1, Attr2, …)</span>
+          </label>
+          <input
+            id="schema-input"
+            class="form-input font-mono"
+            type="text"
+            placeholder="R(BookingID, CustomerID, Name, Phone, BikeID, …)"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+
+        <!-- FDs -->
+        <div class="form-group form-group--full">
+          <label class="form-label" for="fd-input">
+            Functional Dependencies
+            <span class="form-hint">One per line · Format: A, B → C, D</span>
+          </label>
+          <textarea
+            id="fd-input"
+            class="form-textarea font-mono"
+            rows="6"
+            placeholder="BookingID -> CustomerID, BikeID, StartDate, EndDate&#10;CustomerID -> Name, Phone&#10;BikeID -> Model, CategoryID&#10;CategoryID -> CategoryName&#10;PaymentID -> BookingID, Amount"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <!-- Closure attributes -->
+        <div class="form-group">
+          <label class="form-label" for="attrs-input">
+            Attributes for Closure
+            <span class="form-hint">Comma-separated</span>
+          </label>
+          <input
+            id="attrs-input"
+            class="form-input font-mono"
+            type="text"
+            placeholder="BookingID"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+
+        <!-- Action buttons -->
+        <div class="form-group form-group--actions">
+          <div class="btn-group">
+            <button id="btn-closure" class="btn btn-primary" type="button">
+              <span class="btn-icon" aria-hidden="true">⊕</span>
+              Compute Closure
+            </button>
+            <button id="btn-candidate-keys" class="btn btn-primary" type="button">
+              <span class="btn-icon" aria-hidden="true">🔑</span>
+              Find Candidate Keys
+            </button>
+            <button id="btn-normalize" class="btn btn-primary btn-accent" type="button">
+              <span class="btn-icon" aria-hidden="true">⚙</span>
+              Normalize
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── SPINNER ─────────────────────────────── -->
+    <div id="spinner-container" class="spinner-container" hidden aria-label="Loading" role="status">
+      <div class="spinner" aria-hidden="true"></div>
+      <span class="spinner-label">Computing…</span>
+    </div>
+
+    <!-- ─────────────────────────── RESULTS ─────────────────────────────── -->
+    <div id="results-area" class="results-area">
+
+      <!-- CLOSURE RESULT ─────────────────────────────────────────────────── -->
+      <section id="closure-card" class="card result-card" hidden aria-labelledby="closure-heading">
+        <div class="card-header">
+          <h2 id="closure-heading" class="card-title">
+            <span class="card-title-icon" aria-hidden="true">⊕</span>
+            Attribute Closure
+          </h2>
+          <div id="closure-badge" class="result-badge"></div>
+        </div>
+        <div id="closure-input-display" class="closure-input-display"></div>
+        <ol id="closure-steps" class="closure-steps" aria-label="Closure computation steps"></ol>
+        <div id="closure-result-row" class="closure-result-row"></div>
+      </section>
+
+      <!-- CANDIDATE KEYS RESULT ─────────────────────────────────────────── -->
+      <section id="keys-card" class="card result-card" hidden aria-labelledby="keys-heading">
+        <div class="card-header">
+          <h2 id="keys-heading" class="card-title">
+            <span class="card-title-icon" aria-hidden="true">🔑</span>
+            Candidate Keys
+          </h2>
+        </div>
+        <div class="keys-grid">
+          <div class="keys-group">
+            <div class="keys-group-label">Candidate Keys</div>
+            <div id="keys-candidate" class="pill-row" aria-label="Candidate keys"></div>
+          </div>
+          <div class="keys-group">
+            <div class="keys-group-label">Prime Attributes</div>
+            <div id="keys-prime" class="pill-row" aria-label="Prime attributes"></div>
+          </div>
+          <div class="keys-group keys-group--full">
+            <div class="keys-group-label">Non-Prime Attributes</div>
+            <div id="keys-non-prime" class="pill-row" aria-label="Non-prime attributes"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- NORMALIZATION RESULT ──────────────────────────────────────────── -->
+      <section id="norm-card" class="card result-card" hidden aria-labelledby="norm-heading">
+        <div class="card-header">
+          <h2 id="norm-heading" class="card-title">
+            <span class="card-title-icon" aria-hidden="true">⚙</span>
+            Normalization Decomposition
+          </h2>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar" role="tablist" aria-label="Normal form tabs">
+          <button class="tab-btn" id="tab-btn-2NF" role="tab" aria-selected="false" aria-controls="tab-panel-2NF" data-nf="2NF" type="button">2NF</button>
+          <button class="tab-btn" id="tab-btn-3NF" role="tab" aria-selected="true"  aria-controls="tab-panel-3NF" data-nf="3NF" type="button">3NF</button>
+          <button class="tab-btn" id="tab-btn-BCNF" role="tab" aria-selected="false" aria-controls="tab-panel-BCNF" data-nf="BCNF" type="button">BCNF</button>
+        </div>
+
+        <!-- Tab panels -->
+        <div id="tab-panel-2NF"  class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-2NF"  hidden></div>
+        <div id="tab-panel-3NF"  class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-3NF" ></div>
+        <div id="tab-panel-BCNF" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-BCNF" hidden></div>
+      </section>
+
+    </div><!-- /results-area -->
+
+  </main>
+
+  <!-- ══════════════════════════════ FOOTER ═════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>DBMS Academic Project &mdash; Relational Normalization Engine</span>
+      <span class="footer-sep">·</span>
+      <span>Backend: Python / Flask &nbsp;|&nbsp; Frontend: Vanilla JS</span>
+    </div>
+  </footer>
+
+  <script src="/static/script.js" defer></script>
+</body>
+</html>
