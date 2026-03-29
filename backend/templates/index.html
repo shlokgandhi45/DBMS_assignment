@@ -26,10 +26,10 @@
         </div>
         <div>
           <h1 class="header-title">DBMS Normalization Tool</h1>
-          <p class="header-subtitle">Attribute Closure · Candidate Keys · 2NF · 3NF · BCNF</p>
+          <p class="header-subtitle">Bike Management System</p>
         </div>
       </div>
-      <div class="header-badge">Academic Project</div>
+      <div class="header-badge">DBMS PROJECT</div>
     </div>
   </header>
 
@@ -107,7 +107,7 @@
         <div class="form-group form-group--actions">
           <div class="btn-group">
             <button id="btn-closure" class="btn btn-primary" type="button">
-              <span class="btn-icon" aria-hidden="true">⊕</span>
+              <span class="btn-icon" aria-hidden="true">⚙</span>
               Compute Closure
             </button>
             <button id="btn-candidate-keys" class="btn btn-primary" type="button">
@@ -115,7 +115,7 @@
               Find Candidate Keys
             </button>
             <button id="btn-normalize" class="btn btn-primary btn-accent" type="button">
-              <span class="btn-icon" aria-hidden="true">⚙</span>
+              <span class="btn-icon" aria-hidden="true">🧠</span>
               Normalize
             </button>
           </div>
@@ -129,14 +129,24 @@
       <span class="spinner-label">Computing…</span>
     </div>
 
-    <!-- ─────────────────────────── RESULTS ─────────────────────────────── -->
-    <div id="results-area" class="results-area">
+    <!-- ─────────────────────────── SLIDE PANEL OVERLAY ───────────────── -->
+    <div id="panel-overlay" class="panel-overlay"></div>
+
+    <!-- ─────────────────────────── SLIDE PANEL ───────────────────────── -->
+    <aside id="slide-panel" class="slide-panel">
+      <div class="slide-panel-header">
+        <h2 id="panel-title" class="card-title">Results</h2>
+        <button id="btn-close-panel" class="btn-close-panel" aria-label="Close panel">✕</button>
+      </div>
+      <div class="slide-panel-body">
+        <!-- ─────────────────────────── RESULTS ─────────────────────────────── -->
+        <div id="results-area" class="results-area">
 
       <!-- CLOSURE RESULT ─────────────────────────────────────────────────── -->
       <section id="closure-card" class="card result-card" hidden aria-labelledby="closure-heading">
         <div class="card-header">
           <h2 id="closure-heading" class="card-title">
-            <span class="card-title-icon" aria-hidden="true">⊕</span>
+            <span class="card-title-icon" aria-hidden="true">⚙</span>
             Attribute Closure
           </h2>
           <div id="closure-badge" class="result-badge"></div>
@@ -174,7 +184,7 @@
       <section id="norm-card" class="card result-card" hidden aria-labelledby="norm-heading">
         <div class="card-header">
           <h2 id="norm-heading" class="card-title">
-            <span class="card-title-icon" aria-hidden="true">⚙</span>
+            <span class="card-title-icon" aria-hidden="true">🧠</span>
             Normalization Decomposition
           </h2>
         </div>
@@ -192,9 +202,14 @@
         <div id="tab-panel-BCNF" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-BCNF" hidden></div>
       </section>
 
-    </div><!-- /results-area -->
+        </div><!-- /results-area -->
+      </div>
+    </aside>
 
   </main>
+
+  <!-- ════════════════════════════ TOAST NOTIFICATION ═════════════════════════ -->
+  <div id="toast-container" class="toast-container"></div>
 
   <!-- ══════════════════════════════ FOOTER ═════════════════════════════════ -->
   <footer class="site-footer">

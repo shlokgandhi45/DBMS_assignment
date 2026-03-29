@@ -45,8 +45,15 @@ const btnErrorClose = document.getElementById('error-banner-close');
 const errorBanner   = document.getElementById('error-banner');
 const errorBannerMsg= document.getElementById('error-banner-message');
 
-// Spinner
+// Spinner & Toast
 const spinnerContainer = document.getElementById('spinner-container');
+const toastContainer   = document.getElementById('toast-container');
+
+// Slide Panel
+const slidePanel    = document.getElementById('slide-panel');
+const panelOverlay  = document.getElementById('panel-overlay');
+const panelTitle    = document.getElementById('panel-title');
+const btnClosePanel = document.getElementById('btn-close-panel');
 
 // Result cards
 const closureCard   = document.getElementById('closure-card');
@@ -106,6 +113,9 @@ function showSpinner() {
   closureCard.hidden = true;
   keysCard.hidden    = true;
   normCard.hidden    = true;
+  btnClosure.disabled = true;
+  btnKeys.disabled = true;
+  btnNormalize.disabled = true;
 }
 
 /**
@@ -113,6 +123,9 @@ function showSpinner() {
  */
 function hideSpinner() {
   spinnerContainer.hidden = true;
+  btnClosure.disabled = false;
+  btnKeys.disabled = false;
+  btnNormalize.disabled = false;
 }
 
 /**
@@ -134,9 +147,51 @@ function hideError() {
 }
 
 /**
+ * Show a generic toast notification.
+ * @param {string} message - Display message.
+ * @param {string} type    - e.g. 'success', 'warning'
+ */
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.innerHTML = `
+    <span class="toast-icon">${type === 'success' ? '✓' : '⚠'}</span>
+    <span>${escapeHtml(message)}</span>
+  `;
+  toastContainer.appendChild(toast);
+
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.classList.add('toast-closing');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, 3000);
+}
+
+/**
+ * Open the slide panel with a specific title.
+ * @param {string} title - The title to display in the panel header.
+ */
+function openPanel(title) {
+  panelTitle.textContent = title;
+  slidePanel.classList.add('active');
+  panelOverlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close the slide panel.
+ */
+function closePanel() {
+  slidePanel.classList.remove('active');
+  panelOverlay.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+/**
  * Clear all result card contents and hide them.
  */
 function clearResults() {
+  closePanel();
   closureCard.hidden = true;
   keysCard.hidden    = true;
   normCard.hidden    = true;
@@ -353,6 +408,8 @@ function renderClosure(data) {
 
   closureCard.hidden = false;
   fadeInElement(closureCard);
+  openPanel('Attribute Closure Result');
+  showToast('Closure computed successfully!');
 }
 
 /**
@@ -383,6 +440,8 @@ function renderCandidateKeys(data) {
 
   keysCard.hidden = false;
   fadeInElement(keysCard);
+  openPanel('Candidate Keys Result');
+  showToast('Candidate keys discovered successfully!');
 }
 
 /**
@@ -491,6 +550,8 @@ function renderNormalization(data) {
 
   normCard.hidden = false;
   fadeInElement(normCard);
+  openPanel('Normalization Result');
+  showToast('Normalization decomposed successfully!');
 
   // Default to 3NF tab
   switchTab('3NF');
@@ -643,6 +704,10 @@ btnClear.addEventListener('click', () => {
   clearResults();
   hideError();
 });
+
+// ── Slide Panel Close ─────────────────────────────────────────────────────
+btnClosePanel.addEventListener('click', closePanel);
+panelOverlay.addEventListener('click', closePanel);
 
 // ── Dismiss Error banner ───────────────────────────────────────────────────
 btnErrorClose.addEventListener('click', hideError);
