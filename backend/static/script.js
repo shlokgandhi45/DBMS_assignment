@@ -1,737 +1,409 @@
 'use strict';
 
-/**
- * script.js — DBMS Normalization Tool Frontend
- * =============================================
- * Sections:
- *   1. Configuration
- *   2. DOM References
- *   3. Default Values
- *   4. Utility Functions
- *   5. API Call Functions
- *   6. Render Functions
- *   7. Normalization Tab Logic
- *   8. Input Validation
- *   9. Event Listeners
- *  10. Initialization
- */
-
-
 /* ============================================================
    1. CONFIGURATION
    ============================================================ */
-
-/** Base URL for all backend API calls. */
-const API_BASE = 'http://127.0.0.1:5000';
-
+const API_BASE = window.location.origin;
 
 /* ============================================================
    2. DOM REFERENCES
    ============================================================ */
+// Sidebar navigation
+const navItems = document.querySelectorAll('.sidebar-item');
+const contentSections = document.querySelectorAll('.content-section');
 
-// Inputs
-const schemaInput   = document.getElementById('schema-input');
-const fdInput       = document.getElementById('fd-input');
-const attrsInput    = document.getElementById('attrs-input');
+// Forms & Inputs
+const closureSchema = document.getElementById('closure-schema');
+const closureFds    = document.getElementById('closure-fds');
+const closureAttrs  = document.getElementById('closure-attrs');
+
+const keysSchema    = document.getElementById('keys-schema');
+const keysFds       = document.getElementById('keys-fds');
+
+const normSchema    = document.getElementById('norm-schema');
+const normFds       = document.getElementById('norm-fds');
 
 // Buttons
-const btnClosure    = document.getElementById('btn-closure');
-const btnKeys       = document.getElementById('btn-candidate-keys');
-const btnNormalize  = document.getElementById('btn-normalize');
-const btnClear      = document.getElementById('btn-clear');
-const btnErrorClose = document.getElementById('error-banner-close');
+const btnClosure       = document.getElementById('btn-closure');
+const btnClearClosure  = document.getElementById('btn-clear-closure');
+const btnKeys          = document.getElementById('btn-candidate-keys');
+const btnClearKeys     = document.getElementById('btn-clear-keys');
+const btnNormalize     = document.getElementById('btn-normalize');
+const btnClearNorm     = document.getElementById('btn-clear-norm');
 
-// Error banner
-const errorBanner   = document.getElementById('error-banner');
-const errorBannerMsg= document.getElementById('error-banner-message');
-
-// Spinner & Toast
-const spinnerContainer = document.getElementById('spinner-container');
-const toastContainer   = document.getElementById('toast-container');
+// UI Elements
+const spinnerOverlay = document.getElementById('spinner-overlay');
+const toastContainer = document.getElementById('toast-container');
 
 // Slide Panel
 const slidePanel    = document.getElementById('slide-panel');
 const panelOverlay  = document.getElementById('panel-overlay');
 const panelTitle    = document.getElementById('panel-title');
+const panelContent  = document.getElementById('panel-content');
 const btnClosePanel = document.getElementById('btn-close-panel');
 
-// Result cards
-const closureCard   = document.getElementById('closure-card');
-const keysCard      = document.getElementById('keys-card');
-const normCard      = document.getElementById('norm-card');
-
-// Closure card internals
-const closureBadge        = document.getElementById('closure-badge');
-const closureInputDisplay = document.getElementById('closure-input-display');
-const closureSteps        = document.getElementById('closure-steps');
-const closureResultRow    = document.getElementById('closure-result-row');
-
-// Keys card internals
-const keysCandidate = document.getElementById('keys-candidate');
-const keysPrime     = document.getElementById('keys-prime');
-const keysNonPrime  = document.getElementById('keys-non-prime');
-
-// Normalization tab buttons & panels
-const tabButtons = {
-  '2NF':  document.getElementById('tab-btn-2NF'),
-  '3NF':  document.getElementById('tab-btn-3NF'),
-  'BCNF': document.getElementById('tab-btn-BCNF'),
-};
-const tabPanels = {
-  '2NF':  document.getElementById('tab-panel-2NF'),
-  '3NF':  document.getElementById('tab-panel-3NF'),
-  'BCNF': document.getElementById('tab-panel-BCNF'),
-};
-
-
 /* ============================================================
-   3. DEFAULT VALUES (pre-populated on load)
+   3. DEFAULT VALUES
    ============================================================ */
-
-const DEFAULT_SCHEMA = 'R(BookingID, CustomerID, Name, Phone, BikeID, Model, CategoryID, CategoryName, StartDate, EndDate, PaymentID, Amount)';
-
-const DEFAULT_FDS = [
-  'BookingID -> CustomerID, BikeID, StartDate, EndDate',
-  'CustomerID -> Name, Phone',
-  'BikeID -> Model, CategoryID',
-  'CategoryID -> CategoryName',
-  'PaymentID -> BookingID, Amount',
-].join('\n');
-
-const DEFAULT_ATTRS = 'BookingID';
-
+const DEFAULT_SCHEMA = 'Customer(CustomerID, Name, PhoneNumbers, City, Zip, State)';
+const DEFAULT_FDS = 'CustomerID -> Name, PhoneNumbers, City, Zip\nZip -> State, City';
+const DEFAULT_ATTRS = 'CustomerID';
 
 /* ============================================================
    4. UTILITY FUNCTIONS
    ============================================================ */
 
-/**
- * Show the loading spinner and hide all result cards.
- */
 function showSpinner() {
-  spinnerContainer.hidden = false;
-  closureCard.hidden = true;
-  keysCard.hidden    = true;
-  normCard.hidden    = true;
-  btnClosure.disabled = true;
-  btnKeys.disabled = true;
-  btnNormalize.disabled = true;
+  spinnerOverlay.hidden = false;
+  document.body.style.pointerEvents = 'none';
 }
 
-/**
- * Hide the loading spinner.
- */
 function hideSpinner() {
-  spinnerContainer.hidden = true;
-  btnClosure.disabled = false;
-  btnKeys.disabled = false;
-  btnNormalize.disabled = false;
+  spinnerOverlay.hidden = true;
+  document.body.style.pointerEvents = 'auto';
 }
 
-/**
- * Display the global error banner with the given message.
- * @param {string} message - User-facing error text.
- */
-function showError(message) {
-  errorBannerMsg.textContent = message;
-  errorBanner.hidden = false;
-  errorBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-/**
- * Hide the global error banner.
- */
-function hideError() {
-  errorBanner.hidden = true;
-  errorBannerMsg.textContent = '';
-}
-
-/**
- * Show a generic toast notification.
- * @param {string} message - Display message.
- * @param {string} type    - e.g. 'success', 'warning'
- */
 function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   toast.className = `toast toast--${type}`;
   toast.innerHTML = `
-    <span class="toast-icon">${type === 'success' ? '✓' : '⚠'}</span>
-    <span>${escapeHtml(message)}</span>
+    <span class="toast-icon">${type === 'success' ? '✅' : '⚠️'}</span>
+    <span>${message}</span>
   `;
   toastContainer.appendChild(toast);
-
-  // Remove after 3 seconds
   setTimeout(() => {
-    toast.classList.add('toast-closing');
-    toast.addEventListener('animationend', () => toast.remove());
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    setTimeout(() => toast.remove(), 400);
   }, 3000);
 }
 
-/**
- * Open the slide panel with a specific title.
- * @param {string} title - The title to display in the panel header.
- */
-function openPanel(title) {
+function openPanel(title, htmlContent) {
   panelTitle.textContent = title;
-  slidePanel.classList.add('active');
-  panelOverlay.classList.add('active');
+  panelContent.innerHTML = htmlContent;
+  slidePanel.classList.add('show');
+  panelOverlay.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 
-/**
- * Close the slide panel.
- */
 function closePanel() {
-  slidePanel.classList.remove('active');
-  panelOverlay.classList.remove('active');
+  slidePanel.classList.remove('show');
+  panelOverlay.classList.remove('show');
   document.body.style.overflow = '';
 }
 
-/**
- * Clear all result card contents and hide them.
- */
-function clearResults() {
-  closePanel();
-  closureCard.hidden = true;
-  keysCard.hidden    = true;
-  normCard.hidden    = true;
-
-  closureSteps.innerHTML    = '';
-  closureResultRow.innerHTML = '';
-  closureBadge.innerHTML    = '';
-  closureBadge.className    = 'result-badge';
-  closureInputDisplay.innerHTML = '';
-
-  keysCandidate.innerHTML = '';
-  keysPrime.innerHTML     = '';
-  keysNonPrime.innerHTML  = '';
-
-  Object.values(tabPanels).forEach(panel => { panel.innerHTML = ''; });
-}
-
-/**
- * Trigger a CSS fade-in animation on an element by toggling a class.
- * @param {HTMLElement} el - The element to animate.
- */
-function fadeInElement(el) {
-  el.style.animation = 'none';
-  // Force reflow
-  void el.offsetHeight;
-  el.style.animation = '';
-  el.classList.add('result-card');
-}
-
-/**
- * Escape dangerous HTML characters to prevent XSS.
- * @param {string} str - Raw string.
- * @returns {string} HTML-escaped string.
- */
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/**
- * Build a pill/badge HTML element string.
- * @param {string} text  - Label text.
- * @param {string} style - CSS modifier class suffix (key, prime, non-prime, attr, pk).
- * @returns {string} HTML string for a <span class="pill pill--X"> element.
- */
-function makePill(text, style) {
-  return `<span class="pill pill--${escapeHtml(style)}">${escapeHtml(text)}</span>`;
-}
-
-/**
- * Build an alert box HTML string.
- * @param {string}   type    - 'already' | 'violation' | 'warning'
- * @param {string}   icon    - Emoji or character icon.
- * @param {string}   title   - Alert heading.
- * @param {string[]} items   - Optional list of detail strings.
- * @returns {string} HTML string.
- */
-function makeAlert(type, icon, title, items = []) {
-  const listHtml = items.length
-    ? `<ul class="alert-list">${items.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
-    : '';
-  return `
-    <div class="alert alert--${escapeHtml(type)}">
-      <span class="alert-icon">${icon}</span>
-      <div class="alert-content">
-        <div class="alert-title">${escapeHtml(title)}</div>
-        ${listHtml}
-      </div>
-    </div>`;
-}
-
-
-/* ============================================================
-   5. API CALL FUNCTIONS
-   ============================================================ */
-
-/**
- * Compute the attribute closure via the backend.
- *
- * @param {string}   schema     - Schema string (e.g. "R(A,B,C)").
- * @param {string[]} fds        - Array of FD strings.
- * @param {string[]} attributes - Starting attribute array.
- * @returns {Promise<object|null>} Parsed JSON response or null on error.
- */
-async function fetchClosure(schema, fds, attributes) {
-  showSpinner();
-  try {
-    const response = await fetch(`${API_BASE}/closure`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schema, fds, attributes }),
-    });
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      showError(data.error || `Server error (HTTP ${response.status}). Check backend logs.`);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.error('fetchClosure error:', err);
-    showError('Cannot connect to backend. Make sure Flask is running on port 5000.');
-    return null;
-  } finally {
-    hideSpinner();
-  }
-}
-
-/**
- * Find all candidate keys via the backend.
- *
- * @param {string}   schema - Schema string.
- * @param {string[]} fds    - Array of FD strings.
- * @returns {Promise<object|null>} Parsed JSON response or null on error.
- */
-async function fetchCandidateKeys(schema, fds) {
-  showSpinner();
-  try {
-    const response = await fetch(`${API_BASE}/candidate-keys`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schema, fds }),
-    });
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      showError(data.error || `Server error (HTTP ${response.status}). Check backend logs.`);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.error('fetchCandidateKeys error:', err);
-    showError('Cannot connect to backend. Make sure Flask is running on port 5000.');
-    return null;
-  } finally {
-    hideSpinner();
-  }
-}
-
-/**
- * Decompose the relation into 2NF, 3NF, and BCNF via the backend.
- *
- * @param {string}   schema - Schema string.
- * @param {string[]} fds    - Array of FD strings.
- * @returns {Promise<object|null>} Parsed JSON response or null on error.
- */
-async function fetchNormalize(schema, fds) {
-  showSpinner();
-  try {
-    const response = await fetch(`${API_BASE}/normalize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schema, fds, target: 'ALL' }),
-    });
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      showError(data.error || `Server error (HTTP ${response.status}). Check backend logs.`);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.error('fetchNormalize error:', err);
-    showError('Cannot connect to backend. Make sure Flask is running on port 5000.');
-    return null;
-  } finally {
-    hideSpinner();
-  }
-}
-
-
-/* ============================================================
-   6. RENDER FUNCTIONS
-   ============================================================ */
-
-/**
- * Render the closure computation result into the closure card.
- *
- * @param {object} data - The success response JSON from POST /closure.
- */
-function renderClosure(data) {
-  // Clear first
-  closureSteps.innerHTML     = '';
-  closureResultRow.innerHTML = '';
-
-  // Show input
-  const inputStr = `{${data.input_attributes.join(', ')}}`;
-  closureInputDisplay.textContent = `Computing closure of ${inputStr}`;
-
-  // Badge
-  if (data.determines_all) {
-    closureBadge.classList.add('result-badge--success');
-    closureBadge.textContent = '✓ Determines entire schema';
-  } else {
-    closureBadge.classList.add('result-badge--warning');
-    closureBadge.textContent = '⚠ Partial closure';
-  }
-
-  // Steps list
-  data.steps.forEach(step => {
-    const li = document.createElement('li');
-    li.textContent = step;
-    closureSteps.appendChild(li);
+function switchSection(sectionId) {
+  // Update nav buttons
+  navItems.forEach(item => {
+    item.classList.toggle('sidebar-item--active', item.dataset.section === sectionId);
+    item.setAttribute('aria-pressed', item.dataset.section === sectionId);
   });
+  
+  // Update content sections
+  contentSections.forEach(section => {
+    section.classList.toggle('active', section.id === `section-${sectionId}`);
+  });
+}
 
-  // Final closure set
-  const closureStr = `{${data.closure.join(', ')}}`;
-  closureResultRow.innerHTML = `
-    <span class="result-badge ${data.determines_all ? 'result-badge--success' : 'result-badge--warning'}">
-      ${data.determines_all ? '✓ Complete' : '⚠ Incomplete'}
-    </span>
-    <div class="closure-final-set">Closure: ${escapeHtml(closureStr)}</div>
+function clearInputs(schemaEl, fdsEl, attrsEl = null) {
+  schemaEl.value = '';
+  fdsEl.value = '';
+  if (attrsEl) attrsEl.value = '';
+  showToast('Inputs cleared');
+}
+
+/* ============================================================
+   5. COMPONENT GENERATORS
+   ============================================================ */
+
+function renderRelationSmall(rel, problematicAttrs = []) {
+  const attrsHtml = rel.attributes.map(attr => {
+    const isPK = rel.primary_key.includes(attr);
+    const isProblem = problematicAttrs.includes(attr);
+    let className = isPK ? 'pk-underline' : '';
+    if (isProblem) className += ' attr-highlight-red';
+    return `<span class="${className}">${attr}</span>`;
+  }).join(', ');
+
+  let fdsHtml = '';
+  if (rel.fds && rel.fds.length > 0) {
+     fdsHtml = `<div style="font-size: 11px; color: var(--text-secondary, #A0A0A0); margin-top: 6px; font-family: monospace;">` +
+               rel.fds.map(f => `${f.lhs.join(',')} &rarr; ${f.rhs.join(',')}`).join('<br>') +
+               `</div>`;
+  }
+
+  return `
+    <div class="rel-card-small">
+      <span class="rel-name-pill">${rel.name}</span>
+      <div class="rel-attrs-row">
+        (${attrsHtml})
+      </div>
+      ${fdsHtml}
+    </div>
   `;
-
-  closureCard.hidden = false;
-  fadeInElement(closureCard);
-  openPanel('Attribute Closure Result');
-  showToast('Closure computed successfully!');
 }
 
-/**
- * Render the candidate keys result into the keys card.
- *
- * @param {object} data - The success response JSON from POST /candidate-keys.
- */
-function renderCandidateKeys(data) {
-  keysCandidate.innerHTML = '';
-  keysPrime.innerHTML     = '';
-  keysNonPrime.innerHTML  = '';
+function renderNFSection(nf, data, originalSchema = '') {
+  let stepsHtml = '';
 
-  // Candidate keys — one pill per key (which may be multi-attribute)
-  data.candidate_keys.forEach(keyArr => {
-    const keyLabel = `{${keyArr.join(', ')}}`;
-    keysCandidate.insertAdjacentHTML('beforeend', makePill(keyLabel, 'key'));
-  });
+  if (nf === '1NF') {
+    // Step 1: Check
+    const violationsHtml = data.violations.length > 0 
+      ? data.violations.map(v => `<div class="violation-tag">⚠️ ${v}</div>`).join('')
+      : '<div class="success-badge" style="display:inline-flex;">✅ Already in 1NF</div>';
 
-  // Prime attributes — individual pills
-  data.prime_attributes.forEach(attr => {
-    keysPrime.insertAdjacentHTML('beforeend', makePill(attr, 'prime'));
-  });
-
-  // Non-prime attributes — individual pills
-  data.non_prime_attributes.forEach(attr => {
-    keysNonPrime.insertAdjacentHTML('beforeend', makePill(attr, 'non-prime'));
-  });
-
-  keysCard.hidden = false;
-  fadeInElement(keysCard);
-  openPanel('Candidate Keys Result');
-  showToast('Candidate keys discovered successfully!');
-}
-
-/**
- * Build the HTML for a single decomposed relation card.
- *
- * @param {object} relation - A relation dict with name, attributes, primary_key, fds.
- * @returns {string} HTML string for the relation card.
- */
-function renderRelationCard(relation) {
-  const pkSet = new Set(relation.primary_key);
-
-  // Attributes: PK attrs highlighted, non-PK as gray
-  const attrPills = relation.attributes
-    .map(attr => makePill(attr, pkSet.has(attr) ? 'pk' : 'attr'))
-    .join('');
-
-  // FDs
-  const fdLines = relation.fds.map(fd => {
-    const lhs = fd.lhs.join(', ');
-    const rhs = fd.rhs.join(', ');
-    return `<div class="rel-fd-item">${escapeHtml(lhs)} → ${escapeHtml(rhs)}</div>`;
-  }).join('') || '<div class="rel-fd-item">(none)</div>';
-
-  return `
-    <article class="rel-card">
-      <div class="rel-card-header">
-        <span class="rel-name">${escapeHtml(relation.name)}</span>
-        <span class="pill pill--pk" style="font-size:10px;padding:2px 8px;">PK: {${escapeHtml(relation.primary_key.join(', '))}}</span>
+    stepsHtml += `
+      <div class="norm-step" style="margin-bottom: 20px;">
+        <div class="norm-step-header" style="margin-bottom: 10px;">
+           <span class="norm-step-title" style="font-weight: bold; color: var(--primary-purple);">1NF Check</span>
+        </div>
+        <div class="violation-list" style="display: flex; flex-direction: column; gap: 8px;">${violationsHtml}</div>
       </div>
-      <div>
-        <div class="rel-section-label">Attributes (${relation.attributes.length})</div>
-        <div class="rel-attrs">${attrPills}</div>
-      </div>
-      <div>
-        <div class="rel-section-label">Functional Dependencies</div>
-        <div class="rel-fds">${fdLines}</div>
-      </div>
-    </article>`;
-}
+    `;
 
-/**
- * Render a single normal-form tab panel (2NF, 3NF, or BCNF).
- *
- * @param {HTMLElement} panel   - The tab panel DOM element.
- * @param {object}      nfData  - The normal form data object from the API.
- * @param {string}      nfLabel - "2NF", "3NF", or "BCNF".
- */
-function renderNFPanel(panel, nfData, nfLabel) {
-  let html = '';
-
-  // Already satisfied?
-  if (nfData.already_satisfied) {
-    html += makeAlert(
-      'already',
-      '✓',
-      `Relation is already in ${nfLabel}. No decomposition required.`
-    );
+    // Step 2 & 3: Transformation
+    if (!data.already_satisfied) {
+      // Extract original attributes, default to empty array if no match
+      const match = originalSchema.match(/\((.*?)\)/);
+      const originalAttrs = match ? match[1].split(',').map(s=>s.trim()) : [];
+        
+      const beforeRel = { name: "Original", attributes: originalAttrs, primary_key: [] };
+      
+      stepsHtml += `
+        <div class="norm-step" style="margin-bottom: 30px; border-left: 2px solid var(--primary-purple); padding-left: 15px;">
+          <div class="norm-step-header" style="margin-bottom: 10px;">
+             <span class="norm-step-title" style="font-weight: 600;">Convert to 1NF</span>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Extracting multi-valued/repeating attributes into separate linking tables.</p>
+          <div class="relations-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+             ${data.relations.map(r => renderRelationSmall(r, data.problematic_attributes)).join('')}
+          </div>
+        </div>
+      `;
+    }
   } else {
-    // Violations
-    if (nfData.violations && nfData.violations.length > 0) {
-      html += makeAlert(
-        'violation',
-        '✕',
-        `${nfData.violations.length} ${nfLabel} violation${nfData.violations.length > 1 ? 's' : ''} detected:`,
-        nfData.violations
-      );
+    // 2NF, 3NF, BCNF
+    const statusHtml = data.already_satisfied 
+      ? `<div class="success-badge" style="display:inline-flex; border:1px solid #4ade80; padding: 4px 8px; border-radius: 4px; background: rgba(74, 222, 128, 0.1); color: #4ade80;">✅ Already in ${nf}</div>`
+      : `<div class="violation-list" style="display: flex; flex-direction: column; gap: 8px;">${data.violations.map(v => `<div class="violation-tag" style="background: rgba(255,100,100,0.1); color: #ff8888; padding: 6px; border-radius: 4px;">⚠️ ${v}</div>`).join('')}</div>`;
+
+    let relationsHtml = '';
+    if (!data.already_satisfied && data.relations.length > 0) {
+        relationsHtml = `
+          <div style="margin-top: 15px;">
+              <p style="font-size:13px; color:var(--text-secondary); margin-bottom:10px;">Decomposed Relations:</p>
+              <div class="relations-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                 ${data.relations.map(r => renderRelationSmall(r)).join('')}
+              </div>
+          </div>
+        `;
     }
 
-    // BCNF FD preservation warning
-    if (nfData.fd_preservation_warning) {
-      html += makeAlert(
-        'warning',
-        '⚠',
-        'Dependency Preservation Warning',
-        [nfData.fd_preservation_warning]
-      );
-    }
-  }
 
-  // Relations grid
-  if (nfData.relations && nfData.relations.length > 0) {
-    const count = nfData.relations.length;
-    html += `
-      <div class="relations-count-badge">
-        Decomposed into <span class="count">${count}</span> relation${count !== 1 ? 's' : ''}
+    stepsHtml += `
+      <div class="norm-step" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div class="norm-step-header" style="margin-bottom: 10px;">
+           <span class="norm-step-title" style="font-size: 1.2em; font-weight: bold; color: var(--primary-purple);">${nf} Decomposition</span>
+        </div>
+        ${statusHtml}
+        ${relationsHtml}
       </div>
-      <div class="relations-grid">
-        ${nfData.relations.map(renderRelationCard).join('')}
-      </div>`;
+    `;
   }
 
-  panel.innerHTML = html;
+  return stepsHtml;
 }
-
-/**
- * Render the full normalization result (all 3 tabs).
- *
- * @param {object} data - The success response JSON from POST /normalize.
- */
-function renderNormalization(data) {
-  const results = data.results;
-
-  if (results['2NF'])  renderNFPanel(tabPanels['2NF'],  results['2NF'],  '2NF');
-  if (results['3NF'])  renderNFPanel(tabPanels['3NF'],  results['3NF'],  '3NF');
-  if (results['BCNF']) renderNFPanel(tabPanels['BCNF'], results['BCNF'], 'BCNF');
-
-  normCard.hidden = false;
-  fadeInElement(normCard);
-  openPanel('Normalization Result');
-  showToast('Normalization decomposed successfully!');
-
-  // Default to 3NF tab
-  switchTab('3NF');
-}
-
 
 /* ============================================================
-   7. NORMALIZATION TAB LOGIC
+   6. ACTION HANDLERS
    ============================================================ */
 
-/**
- * Switch the active normalization tab.
- *
- * @param {string} targetNF - "2NF", "3NF", or "BCNF".
- */
-function switchTab(targetNF) {
-  Object.entries(tabButtons).forEach(([nf, btn]) => {
-    const isActive = nf === targetNF;
-    btn.classList.toggle('tab-btn--active', isActive);
-    btn.setAttribute('aria-selected', String(isActive));
-  });
-  Object.entries(tabPanels).forEach(([nf, panel]) => {
-    panel.hidden = nf !== targetNF;
-  });
-}
+async function handleClosure() {
+  const schema = closureSchema.value.trim();
+  const attrs = closureAttrs.value.split(',').map(s => s.trim()).filter(Boolean);
+  const fds = closureFds.value.split('\n').map(l => l.trim()).filter(l => l.includes('->'));
 
-
-/* ============================================================
-   8. INPUT VALIDATION
-   ============================================================ */
-
-/**
- * Validate schema and FD inputs before any API call.
- * Calls showError() and returns false if validation fails.
- *
- * @param {boolean} requireAttrs - Whether closure-specific attrs field is required.
- * @returns {boolean} True if all inputs are valid.
- */
-function validateInputs(requireAttrs = false) {
-  const schema = schemaInput.value.trim();
-  const fdsRaw = fdInput.value.trim();
-  const attrs  = attrsInput.value.trim();
-
-  if (!schema) {
-    showError('Schema is required. Please enter a relation schema like R(A, B, C).');
-    return false;
+  if (!schema || !attrs.length || !fds.length) {
+    showToast('Please fill all required fields', 'warning');
+    return;
   }
 
-  // Rough pattern: WORD(anything)
-  if (!/^\w+\(.+\)\s*$/.test(schema)) {
-    showError('Schema format is invalid. Expected format: RelationName(Attr1, Attr2, …).');
-    return false;
-  }
-
-  if (!fdsRaw) {
-    showError('Functional Dependencies are required. Enter at least one FD per line.');
-    return false;
-  }
-
-  const fdLines = fdsRaw.split('\n').map(l => l.trim()).filter(Boolean);
-  const hasArrow = fdLines.some(line => line.includes('->'));
-  if (!hasArrow) {
-    showError('No valid FD found. Each functional dependency must contain "->" (e.g. "A -> B, C").');
-    return false;
-  }
-
-  if (requireAttrs) {
-    if (!attrs) {
-      showError('Attributes for closure are required. Enter a comma-separated list (e.g. "BookingID").');
-      return false;
+  showSpinner();
+  try {
+    const resp = await fetch(`${API_BASE}/closure`, {
+      method: 'POST',
+      body: JSON.stringify({ schema, attributes: attrs, fds })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      const html = `
+        <div class="card" style="padding: 24px; background: var(--card-bg, #1A1A2E); border-radius: 12px;">
+           <div class="key-box" style="margin-bottom:20px;">
+              <label style="display:block; margin-bottom:8px; color:var(--text-secondary); font-size:14px;">Input Attributes</label>
+              <div class="badge-row" style="display:flex; flex-wrap:wrap; gap:8px;">${data.input_attributes.map(a => `<span class="badge-item" style="padding:4px 8px; background:rgba(255,255,255,0.1); border-radius:4px; font-family:monospace;">${a}</span>`).join('')}</div>
+           </div>
+           
+           <label style="display:block; margin-bottom:8px; color:var(--text-secondary); font-size:14px; margin-top:24px;">Computation Steps</label>
+           <div class="step-list" style="background:rgba(0,0,0,0.2); padding:16px; border-radius:8px; font-family:monospace; font-size:13px; line-height:1.6; display:flex; flex-direction:column; gap:8px;">
+              ${data.steps.map(s => `<div class="step-item" style="border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">${s}</div>`).join('')}
+           </div>
+           
+           <div class="key-box" style="margin-top:24px; padding:16px; border:1px solid var(--primary-purple); border-radius:8px; background:rgba(157, 78, 221, 0.05);">
+              <label style="display:block; margin-bottom:8px; color:white; font-size:14px; font-weight:bold;">Final Closure</label>
+              <div class="badge-row" style="display:flex; flex-wrap:wrap; gap:8px;">${data.closure.map(a => `<span class="badge-item" style="background:var(--primary-purple); color:white; padding:6px 12px; border-radius:4px; font-family:monospace; font-weight:bold;">${a}</span>`).join('')}</div>
+           </div>
+           ${data.determines_all ? '<div style="margin-top:12px; color:#4ade80; font-size:14px;">✨ These attributes form a superkey!</div>' : ''}
+        </div>
+      `;
+      openPanel('Attribute Closure Result', html);
+      showToast('Closure computed');
+    } else {
+      showToast(data.error, 'warning');
     }
+  } catch (e) {
+    showToast('Backend connection error', 'warning');
+    console.error(e);
+  } finally {
+    hideSpinner();
+  }
+}
+
+async function handleKeys() {
+  const schema = keysSchema.value.trim();
+  const fds = keysFds.value.split('\n').map(l => l.trim()).filter(l => l.includes('->'));
+
+  if (!schema || !fds.length) {
+    showToast('Schema and FDs required', 'warning');
+    return;
   }
 
-  return true;
+  showSpinner();
+  try {
+    const resp = await fetch(`${API_BASE}/candidate-keys`, {
+      method: 'POST',
+      body: JSON.stringify({ schema, fds })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      const html = `
+        <div class="keys-grid" style="display:grid; gap:20px; padding: 20px;">
+           <div class="key-box card" style="background:rgba(157, 78, 221, 0.1); border:1px solid var(--primary-purple);">
+              <label style="display:block; color:white; font-weight:bold; margin-bottom:12px; font-size:16px;">Candidate Keys</label>
+              <div class="badge-row" style="display:flex; flex-wrap:wrap; gap:10px;">
+                ${data.candidate_keys.map(k => `<span class="badge-item" style="background:var(--primary-purple); color:white; padding:8px 16px; border-radius:6px; font-family:monospace; font-weight:bold; box-shadow:0 2px 8px rgba(157, 78, 221, 0.4);">{${k.join(', ')}}</span>`).join('')}
+              </div>
+           </div>
+           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top: 10px;">
+               <div class="key-box card">
+                  <label style="display:block; color:var(--text-secondary); margin-bottom:10px;">Prime Attributes</label>
+                  <div class="badge-row" style="display:flex; flex-wrap:wrap; gap:8px;">
+                    ${data.prime_attributes.length ? data.prime_attributes.map(a => `<span class="badge-item" style="padding:4px 10px; background:rgba(255,255,255,0.1); border-radius:4px; font-family:monospace;">${a}</span>`).join('') : '<span style="color:#666; font-style:italic;">None</span>'}
+                  </div>
+               </div>
+               <div class="key-box card">
+                  <label style="display:block; color:var(--text-secondary); margin-bottom:10px;">Non-Prime Attributes</label>
+                  <div class="badge-row" style="display:flex; flex-wrap:wrap; gap:8px;">
+                    ${data.non_prime_attributes.length ? data.non_prime_attributes.map(a => `<span class="badge-item" style="padding:4px 10px; background:rgba(255,255,255,0.05); color:var(--text-secondary); border-radius:4px; font-family:monospace;">${a}</span>`).join('') : '<span style="color:#666; font-style:italic;">None</span>'}
+                  </div>
+               </div>
+           </div>
+        </div>
+      `;
+      openPanel('Candidate Keys Result', html);
+      showToast('Keys found');
+    } else {
+      showToast(data.error, 'warning');
+    }
+  } catch (e) {
+    showToast('Backend connection error', 'warning');
+    console.error(e);
+  } finally {
+    hideSpinner();
+  }
 }
 
-/**
- * Parse the FD textarea into a clean array of non-empty FD strings.
- * @returns {string[]}
- */
-function parseFdLines() {
-  return fdInput.value
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0 && l.includes('->'));
-}
+async function handleNormalize() {
+  const schema = normSchema.value.trim();
+  const fds = normFds.value.split('\n').map(l => l.trim()).filter(l => l.includes('->'));
 
+  if (!schema || !fds.length) {
+    showToast('Schema and FDs required', 'warning');
+    return;
+  }
+
+  showSpinner();
+  try {
+    const resp = await fetch(`${API_BASE}/normalize`, {
+      method: 'POST',
+      body: JSON.stringify({ schema, fds, target: 'ALL' })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      let html = '<div id="norm-results-container" style="padding: 20px;">';
+      html += renderNFSection('1NF', data.results['1NF'], schema);
+      html += renderNFSection('2NF', data.results['2NF']);
+      html += renderNFSection('3NF', data.results['3NF']);
+      if (data.results['BCNF']) html += renderNFSection('BCNF', data.results['BCNF']);
+      html += '</div>';
+      
+      openPanel('Normalization Sequence', html);
+      showToast('Normalization complete');
+    } else {
+      showToast(data.error, 'warning');
+    }
+  } catch (e) {
+    showToast('Backend error', 'warning');
+    console.error(e);
+  } finally {
+    hideSpinner();
+  }
+}
 
 /* ============================================================
-   9. EVENT LISTENERS
+   7. EVENT LISTENERS
    ============================================================ */
 
-// ── Compute Closure ────────────────────────────────────────────────────────
-btnClosure.addEventListener('click', async () => {
-  hideError();
-  if (!validateInputs(true)) return;
+btnClosure.addEventListener('click', handleClosure);
+btnClearClosure.addEventListener('click', () => clearInputs(closureSchema, closureFds, closureAttrs));
 
-  const schema = schemaInput.value.trim();
-  const fds    = parseFdLines();
-  const attrs  = attrsInput.value
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+btnKeys.addEventListener('click', handleKeys);
+btnClearKeys.addEventListener('click', () => clearInputs(keysSchema, keysFds));
 
-  if (!fds.length) {
-    showError('No valid FDs found. Ensure each FD contains "->".');
-    return;
-  }
+btnNormalize.addEventListener('click', handleNormalize);
+btnClearNorm.addEventListener('click', () => clearInputs(normSchema, normFds));
 
-  const data = await fetchClosure(schema, fds, attrs);
-  if (data) renderClosure(data);
-});
-
-// ── Find Candidate Keys ────────────────────────────────────────────────────
-btnKeys.addEventListener('click', async () => {
-  hideError();
-  if (!validateInputs(false)) return;
-
-  const schema = schemaInput.value.trim();
-  const fds    = parseFdLines();
-
-  if (!fds.length) {
-    showError('No valid FDs found. Ensure each FD contains "->".');
-    return;
-  }
-
-  const data = await fetchCandidateKeys(schema, fds);
-  if (data) renderCandidateKeys(data);
-});
-
-// ── Normalize ─────────────────────────────────────────────────────────────
-btnNormalize.addEventListener('click', async () => {
-  hideError();
-  if (!validateInputs(false)) return;
-
-  const schema = schemaInput.value.trim();
-  const fds    = parseFdLines();
-
-  if (!fds.length) {
-    showError('No valid FDs found. Ensure each FD contains "->".');
-    return;
-  }
-
-  const data = await fetchNormalize(schema, fds);
-  if (data) renderNormalization(data);
-});
-
-// ── Clear Results ─────────────────────────────────────────────────────────
-btnClear.addEventListener('click', () => {
-  clearResults();
-  hideError();
-});
-
-// ── Slide Panel Close ─────────────────────────────────────────────────────
 btnClosePanel.addEventListener('click', closePanel);
 panelOverlay.addEventListener('click', closePanel);
 
-// ── Dismiss Error banner ───────────────────────────────────────────────────
-btnErrorClose.addEventListener('click', hideError);
-
-// ── Tab switching ─────────────────────────────────────────────────────────
-Object.entries(tabButtons).forEach(([nf, btn]) => {
-  btn.addEventListener('click', () => switchTab(nf));
+// Escape key to close panel
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && slidePanel.classList.contains('show')) {
+        closePanel();
+    }
 });
 
+// Sidebar Nav Interaction
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    switchSection(item.dataset.section);
+  });
+});
 
 /* ============================================================
-   10. INITIALIZATION
+   8. INITIALIZATION
    ============================================================ */
-
-/**
- * Run on DOMContentLoaded — pre-populate all input fields with demo data
- * and set the default active normalization tab.
- */
 document.addEventListener('DOMContentLoaded', () => {
-  // Pre-populate inputs
-  schemaInput.value = DEFAULT_SCHEMA;
-  fdInput.value     = DEFAULT_FDS;
-  attrsInput.value  = DEFAULT_ATTRS;
+  // Init default values for all inputs
+  closureSchema.value = DEFAULT_SCHEMA;
+  closureFds.value = DEFAULT_FDS;
+  closureAttrs.value = DEFAULT_ATTRS;
 
-  // Default tab
-  switchTab('3NF');
+  keysSchema.value = DEFAULT_SCHEMA;
+  keysFds.value = DEFAULT_FDS;
+
+  normSchema.value = DEFAULT_SCHEMA;
+  normFds.value = DEFAULT_FDS;
+  
+  // Ensure correct initial view
+  switchSection('closure');
 });

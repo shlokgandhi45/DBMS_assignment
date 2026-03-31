@@ -4,221 +4,278 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DBMS Normalization Tool</title>
-  <meta name="description" content="Compute attribute closure, find candidate keys, and decompose relations into 2NF, 3NF, and BCNF — step by step." />
+  <meta name="description" content="Compute attribute closure, find candidate keys, and decompose relations into 1NF, 2NF, 3NF, and BCNF — step by step." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .content-section { display: none; flex: 1; min-height: 0; }
+    .content-section.active { display: flex; flex-direction: column; }
+    .section-scroll { flex: 1; overflow-y: auto; padding: 32px; }
+    .input-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .input-two-col .form-group:last-child textarea { min-height: 160px; }
+    .action-bar { display: flex; gap: 12px; margin-top: 20px; align-items: center; }
+    .section-hero { margin-bottom: 24px; }
+    .section-hero h1 { font-size: 22px; font-weight: 700; color: var(--text-main, #EAEAEA); margin: 0 0 6px; }
+    .section-hero p  { font-size: 14px; color: var(--text-secondary, #A0A0A0); margin: 0; }
+    .about-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+    .about-list { list-style: none; padding: 0; margin: 12px 0 0; }
+    .about-list li { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.06); color: var(--text-secondary, #A0A0A0); font-size: 13px; }
+    .about-list li strong { color: var(--text-main, #EAEAEA); }
+    .about-list li code  { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--secondary-purple, #C77DFF); background: rgba(157,78,221,.12); padding: 1px 6px; border-radius: 4px; }
+  </style>
 </head>
 <body>
 
-  <!-- ═══════════════════════════════ HEADER ════════════════════════════════ -->
-  <header class="site-header">
-    <div class="container header-inner">
-      <div class="header-brand">
-        <div class="header-icon" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.9"/>
-            <rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.6"/>
-            <rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.6"/>
-            <rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.3"/>
-          </svg>
-        </div>
-        <div>
-          <h1 class="header-title">DBMS Normalization Tool</h1>
-          <p class="header-subtitle">Bike Management System</p>
-        </div>
+  <!-- ═══════════════════════ TOP NAVBAR ═══════════════════════ -->
+  <header class="navbar" id="navbar">
+    <div class="navbar-brand">
+      <div class="navbar-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.95"/>
+          <rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.65"/>
+          <rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.65"/>
+          <rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.35"/>
+        </svg>
       </div>
-      <div class="header-badge">DBMS PROJECT</div>
+      <div>
+        <span class="navbar-title">DBMS Normalization Tool</span>
+        <span class="navbar-sub">Bike Rental Management System</span>
+      </div>
+    </div>
+    <div class="navbar-right">
+      <span class="navbar-badge">DBMS PROJECT</span>
     </div>
   </header>
 
-  <!-- ════════════════════════════ ERROR BANNER ════════════════════════════ -->
-  <div id="error-banner" class="error-banner" role="alert" aria-live="polite" hidden>
-    <div class="container error-banner-inner">
-      <span class="error-banner-icon" aria-hidden="true">⚠</span>
-      <span id="error-banner-message" class="error-banner-text"></span>
-      <button id="error-banner-close" class="error-banner-close" aria-label="Dismiss error">✕</button>
-    </div>
-  </div>
+  <!-- ═══════════════════════ APP SHELL ═══════════════════════ -->
+  <div class="app-shell">
 
-  <!-- ══════════════════════════════ MAIN ═══════════════════════════════════ -->
-  <main class="container main-content">
+    <!-- ─────────────── SIDEBAR ─────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav" aria-label="Main navigation">
 
-    <!-- ─────────────────────────── INPUT PANEL ─────────────────────────── -->
-    <section class="card input-panel" aria-labelledby="input-heading">
-      <div class="card-header">
-        <h2 id="input-heading" class="card-title">
-          <span class="card-title-icon" aria-hidden="true">📥</span>
-          Input Configuration
-        </h2>
-        <button id="btn-clear" class="btn btn-clear" type="button">Clear Results</button>
-      </div>
+        <div class="sidebar-section-label">TOOLS</div>
 
-      <div class="input-grid">
-        <!-- Schema -->
-        <div class="form-group form-group--full">
-          <label class="form-label" for="schema-input">
-            Relation Schema
-            <span class="form-hint">Format: RelationName(Attr1, Attr2, …)</span>
-          </label>
-          <input
-            id="schema-input"
-            class="form-input font-mono"
-            type="text"
-            placeholder="R(BookingID, CustomerID, Name, Phone, BikeID, …)"
-            autocomplete="off"
-            spellcheck="false"
-          />
-        </div>
+        <button class="sidebar-item sidebar-item--active" data-section="closure" id="nav-closure" aria-pressed="true">
+          <span class="sidebar-icon">⚙️</span>
+          <span class="sidebar-label">Closure</span>
+        </button>
+        <button class="sidebar-item" data-section="keys" id="nav-keys" aria-pressed="false">
+          <span class="sidebar-icon">🔑</span>
+          <span class="sidebar-label">Candidate Keys</span>
+        </button>
+        <button class="sidebar-item" data-section="normalize" id="nav-normalize" aria-pressed="false">
+          <span class="sidebar-icon">🧠</span>
+          <span class="sidebar-label">Normalize</span>
+        </button>
 
-        <!-- FDs -->
-        <div class="form-group form-group--full">
-          <label class="form-label" for="fd-input">
-            Functional Dependencies
-            <span class="form-hint">One per line · Format: A, B → C, D</span>
-          </label>
-          <textarea
-            id="fd-input"
-            class="form-textarea font-mono"
-            rows="6"
-            placeholder="BookingID -> CustomerID, BikeID, StartDate, EndDate&#10;CustomerID -> Name, Phone&#10;BikeID -> Model, CategoryID&#10;CategoryID -> CategoryName&#10;PaymentID -> BookingID, Amount"
-            spellcheck="false"
-          ></textarea>
-        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-label">INFO</div>
 
-        <!-- Closure attributes -->
-        <div class="form-group">
-          <label class="form-label" for="attrs-input">
-            Attributes for Closure
-            <span class="form-hint">Comma-separated</span>
-          </label>
-          <input
-            id="attrs-input"
-            class="form-input font-mono"
-            type="text"
-            placeholder="BookingID"
-            autocomplete="off"
-            spellcheck="false"
-          />
-        </div>
+        <button class="sidebar-item" data-section="about" id="nav-about" aria-pressed="false">
+          <span class="sidebar-icon">📖</span>
+          <span class="sidebar-label">About</span>
+        </button>
+      </nav>
 
-        <!-- Action buttons -->
-        <div class="form-group form-group--actions">
-          <div class="btn-group">
-            <button id="btn-closure" class="btn btn-primary" type="button">
-              <span class="btn-icon" aria-hidden="true">⚙</span>
-              Compute Closure
-            </button>
-            <button id="btn-candidate-keys" class="btn btn-primary" type="button">
-              <span class="btn-icon" aria-hidden="true">🔑</span>
-              Find Candidate Keys
-            </button>
-            <button id="btn-normalize" class="btn btn-primary btn-accent" type="button">
-              <span class="btn-icon" aria-hidden="true">🧠</span>
-              Normalize
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ─────────────────────────── SPINNER ─────────────────────────────── -->
-    <div id="spinner-container" class="spinner-container" hidden aria-label="Loading" role="status">
-      <div class="spinner" aria-hidden="true"></div>
-      <span class="spinner-label">Computing…</span>
-    </div>
-
-    <!-- ─────────────────────────── SLIDE PANEL OVERLAY ───────────────── -->
-    <div id="panel-overlay" class="panel-overlay"></div>
-
-    <!-- ─────────────────────────── SLIDE PANEL ───────────────────────── -->
-    <aside id="slide-panel" class="slide-panel">
-      <div class="slide-panel-header">
-        <h2 id="panel-title" class="card-title">Results</h2>
-        <button id="btn-close-panel" class="btn-close-panel" aria-label="Close panel">✕</button>
-      </div>
-      <div class="slide-panel-body">
-        <!-- ─────────────────────────── RESULTS ─────────────────────────────── -->
-        <div id="results-area" class="results-area">
-
-      <!-- CLOSURE RESULT ─────────────────────────────────────────────────── -->
-      <section id="closure-card" class="card result-card" hidden aria-labelledby="closure-heading">
-        <div class="card-header">
-          <h2 id="closure-heading" class="card-title">
-            <span class="card-title-icon" aria-hidden="true">⚙</span>
-            Attribute Closure
-          </h2>
-          <div id="closure-badge" class="result-badge"></div>
-        </div>
-        <div id="closure-input-display" class="closure-input-display"></div>
-        <ol id="closure-steps" class="closure-steps" aria-label="Closure computation steps"></ol>
-        <div id="closure-result-row" class="closure-result-row"></div>
-      </section>
-
-      <!-- CANDIDATE KEYS RESULT ─────────────────────────────────────────── -->
-      <section id="keys-card" class="card result-card" hidden aria-labelledby="keys-heading">
-        <div class="card-header">
-          <h2 id="keys-heading" class="card-title">
-            <span class="card-title-icon" aria-hidden="true">🔑</span>
-            Candidate Keys
-          </h2>
-        </div>
-        <div class="keys-grid">
-          <div class="keys-group">
-            <div class="keys-group-label">Candidate Keys</div>
-            <div id="keys-candidate" class="pill-row" aria-label="Candidate keys"></div>
-          </div>
-          <div class="keys-group">
-            <div class="keys-group-label">Prime Attributes</div>
-            <div id="keys-prime" class="pill-row" aria-label="Prime attributes"></div>
-          </div>
-          <div class="keys-group keys-group--full">
-            <div class="keys-group-label">Non-Prime Attributes</div>
-            <div id="keys-non-prime" class="pill-row" aria-label="Non-prime attributes"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- NORMALIZATION RESULT ──────────────────────────────────────────── -->
-      <section id="norm-card" class="card result-card" hidden aria-labelledby="norm-heading">
-        <div class="card-header">
-          <h2 id="norm-heading" class="card-title">
-            <span class="card-title-icon" aria-hidden="true">🧠</span>
-            Normalization Decomposition
-          </h2>
-        </div>
-
-        <!-- Tab bar -->
-        <div class="tab-bar" role="tablist" aria-label="Normal form tabs">
-          <button class="tab-btn" id="tab-btn-2NF" role="tab" aria-selected="false" aria-controls="tab-panel-2NF" data-nf="2NF" type="button">2NF</button>
-          <button class="tab-btn" id="tab-btn-3NF" role="tab" aria-selected="true"  aria-controls="tab-panel-3NF" data-nf="3NF" type="button">3NF</button>
-          <button class="tab-btn" id="tab-btn-BCNF" role="tab" aria-selected="false" aria-controls="tab-panel-BCNF" data-nf="BCNF" type="button">BCNF</button>
-        </div>
-
-        <!-- Tab panels -->
-        <div id="tab-panel-2NF"  class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-2NF"  hidden></div>
-        <div id="tab-panel-3NF"  class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-3NF" ></div>
-        <div id="tab-panel-BCNF" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-BCNF" hidden></div>
-      </section>
-
-        </div><!-- /results-area -->
+      <div class="sidebar-footer">
+        <span class="sidebar-footer-text">Flask · Python · Vanilla JS</span>
       </div>
     </aside>
 
-  </main>
+    <!-- ─────────────── MAIN CONTENT ─────────────── -->
+    <main class="main-area" id="main-area">
 
-  <!-- ════════════════════════════ TOAST NOTIFICATION ═════════════════════════ -->
-  <div id="toast-container" class="toast-container"></div>
+      <!-- ══════════ SECTION: CLOSURE ══════════ -->
+      <div class="content-section active" id="section-closure">
+        <div class="section-scroll">
+          <div class="section-hero">
+            <h1>⚙️ Attribute Closure</h1>
+            <p>Given a set of attributes, compute everything they functionally determine using the fixed-point algorithm.</p>
+          </div>
+          <div class="card">
+            <div class="input-two-col">
+              <div>
+                <div class="form-group">
+                  <label class="form-label" for="closure-schema">
+                    Relation Schema <span class="form-hint">Format: R(A, B, C)</span>
+                  </label>
+                  <input id="closure-schema" class="form-input font-mono" type="text"
+                    placeholder="R(BookingID, CustomerID, Name, Phone)" autocomplete="off" spellcheck="false" />
+                </div>
+                <div class="form-group" style="margin-top:16px;">
+                  <label class="form-label" for="closure-attrs">
+                    Starting Attributes <span class="form-hint">Comma-separated</span>
+                  </label>
+                  <input id="closure-attrs" class="form-input font-mono" type="text"
+                    placeholder="BookingID" autocomplete="off" spellcheck="false" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="closure-fds">
+                  Functional Dependencies <span class="form-hint">One per line · A -&gt; B, C</span>
+                </label>
+                <textarea id="closure-fds" class="form-textarea font-mono" rows="7"
+                  placeholder="BookingID -> CustomerID, BikeID&#10;CustomerID -> Name, Phone" spellcheck="false"></textarea>
+              </div>
+            </div>
+            <div class="action-bar">
+              <button id="btn-closure" class="btn btn-primary">⚙️ Compute Closure</button>
+              <button id="btn-clear-closure" class="btn btn-ghost">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-  <!-- ══════════════════════════════ FOOTER ═════════════════════════════════ -->
-  <footer class="site-footer">
-    <div class="container footer-inner">
-      <span>DBMS Academic Project &mdash; Relational Normalization Engine</span>
-      <span class="footer-sep">·</span>
-      <span>Backend: Python / Flask &nbsp;|&nbsp; Frontend: Vanilla JS</span>
+      <!-- ══════════ SECTION: CANDIDATE KEYS ══════════ -->
+      <div class="content-section" id="section-keys">
+        <div class="section-scroll">
+          <div class="section-hero">
+            <h1>🔑 Candidate Keys</h1>
+            <p>Discover all minimal superkeys, prime attributes, and non-prime attributes of the relation.</p>
+          </div>
+          <div class="card">
+            <div class="input-two-col">
+              <div class="form-group">
+                <label class="form-label" for="keys-schema">
+                  Relation Schema <span class="form-hint">Format: R(A, B, C)</span>
+                </label>
+                <input id="keys-schema" class="form-input font-mono" type="text"
+                  placeholder="R(BookingID, CustomerID, Name, Phone)" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="keys-fds">
+                  Functional Dependencies <span class="form-hint">One per line</span>
+                </label>
+                <textarea id="keys-fds" class="form-textarea font-mono" rows="7"
+                  placeholder="BookingID -> CustomerID, BikeID&#10;CustomerID -> Name, Phone" spellcheck="false"></textarea>
+              </div>
+            </div>
+            <div class="action-bar">
+              <button id="btn-candidate-keys" class="btn btn-primary">🔑 Find Candidate Keys</button>
+              <button id="btn-clear-keys" class="btn btn-ghost">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ SECTION: NORMALIZE ══════════ -->
+      <div class="content-section" id="section-normalize">
+        <div class="section-scroll">
+          <div class="section-hero">
+            <h1>🧠 Normalize</h1>
+            <p>Decompose your relation step-by-step: check 1NF violations, then decompose into 2NF and 3NF.</p>
+          </div>
+          <div class="card">
+            <div class="input-two-col">
+              <div class="form-group">
+                <label class="form-label" for="norm-schema">
+                  Relation Schema <span class="form-hint">Format: R(A, B, C)</span>
+                </label>
+                <input id="norm-schema" class="form-input font-mono" type="text"
+                  placeholder="R(BookingID, CustomerID, Name, Phone)" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="norm-fds">
+                  Functional Dependencies <span class="form-hint">One per line</span>
+                </label>
+                <textarea id="norm-fds" class="form-textarea font-mono" rows="7"
+                  placeholder="BookingID -> CustomerID, BikeID&#10;CustomerID -> Name, Phone" spellcheck="false"></textarea>
+              </div>
+            </div>
+            <div class="action-bar">
+              <button id="btn-normalize" class="btn btn-accent">🧠 Run Normalization</button>
+              <button id="btn-clear-norm" class="btn btn-ghost">Clear</button>
+            </div>
+          </div>
+
+          <!-- Normal Forms quick reference -->
+          <div class="card" style="margin-top:20px;">
+            <h3 class="card-title" style="margin-bottom:16px;">Normal Forms Reference</h3>
+            <div class="nf-table">
+              <div class="nf-row">
+                <span class="nf-badge nf-badge--1nf">1NF</span>
+                <span class="nf-desc">All attributes atomic — no repeating groups or multi-valued attributes</span>
+              </div>
+              <div class="nf-row">
+                <span class="nf-badge nf-badge--2nf">2NF</span>
+                <span class="nf-desc">No partial dependencies on any candidate key</span>
+              </div>
+              <div class="nf-row">
+                <span class="nf-badge nf-badge--3nf">3NF</span>
+                <span class="nf-desc">No transitive dependencies via non-prime attributes</span>
+              </div>
+              <div class="nf-row">
+                <span class="nf-badge nf-badge--bcnf">BCNF</span>
+                <span class="nf-desc">Every non-trivial FD has a superkey on the left side</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ SECTION: ABOUT ══════════ -->
+      <div class="content-section" id="section-about">
+        <div class="section-scroll">
+          <div class="section-hero">
+            <h1>📖 About</h1>
+            <p>DBMS Normalization Tool — Academic Project</p>
+          </div>
+          <div class="about-grid">
+            <div class="card about-card">
+              <h3 class="card-title">🛠 Tech Stack</h3>
+              <ul class="about-list">
+                <li><strong>Backend:</strong> Python 3.10+ / Flask + Flask-CORS</li>
+                <li><strong>Frontend:</strong> Vanilla HTML5 · CSS3 · JavaScript (ES2020)</li>
+                <li><strong>Fonts:</strong> Inter (UI) + JetBrains Mono (code)</li>
+                <li><strong>Algorithms:</strong> Fixed-point closure, power-set candidate keys, synthesis 3NF, lossless BCNF</li>
+              </ul>
+            </div>
+            <div class="card about-card">
+              <h3 class="card-title">📡 API Endpoints</h3>
+              <ul class="about-list">
+                <li><code>POST /closure</code> — Attribute closure with step trace</li>
+                <li><code>POST /candidate-keys</code> — All minimal superkeys</li>
+                <li><code>POST /normalize</code> — 1NF / 2NF / 3NF / BCNF decomposition</li>
+                <li><code>GET /health</code> — Liveness probe</li>
+              </ul>
+            </div>
+            <div class="card about-card">
+              <h3 class="card-title">📋 Demo Schema</h3>
+              <p style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-top:10px;">
+                Bike Rental Management System with 12 attributes and 5 functional dependencies.
+                Demonstrates partial dependencies (2NF violations) and transitive dependencies (3NF violations).
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- /main-area -->
+  </div><!-- /app-shell -->
+
+  <!-- ═══════════════════ SPINNER OVERLAY ═══════════════════ -->
+  <div id="spinner-overlay" class="spinner-overlay" hidden aria-label="Loading" role="status">
+    <div class="spinner-box">
+      <div class="spinner"></div>
+      <span class="spinner-label">Computing…</span>
     </div>
-  </footer>
+  </div>
+
+  <!-- ═══════════════════ SLIDE PANEL (Results) ═══════════════════ -->
+  <div id="panel-overlay" class="panel-overlay"></div>
+  <aside id="slide-panel" class="slide-panel" role="dialog" aria-modal="true" aria-labelledby="panel-title">
+    <div class="panel-header">
+      <h2 id="panel-title" class="panel-title">Results</h2>
+      <button id="btn-close-panel" class="modal-close-btn" aria-label="Close">✕</button>
+    </div>
+    <div id="panel-content" class="panel-content"></div>
+  </aside>
+
+  <!-- ═══════════════════ TOAST CONTAINER ═══════════════════ -->
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="/static/script.js" defer></script>
 </body>

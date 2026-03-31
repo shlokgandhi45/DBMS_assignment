@@ -18,9 +18,9 @@
   --bg-card:         #1A1A2E;
   --bg-input:        #0F0F1C;
 
-  --primary-purple:  #9D4EDD;
-  --secondary-purple: #C77DFF;
-  --accent-glow:     rgba(157, 78, 221, 0.4);
+  --primary-purple:  #b91c1c;   /* primary red accent */
+  --secondary-purple: #ef4444;  /* lighter red */
+  --accent-glow:     rgba(239, 68, 68, 0.45);
   
   --text-main:       #EAEAEA;
   --text-secondary:  #A0A0A0;
@@ -101,12 +101,16 @@ body {
 }
 
 .content-container {
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
-  padding: 0 40px;
+  padding: 0 24px;
   display: flex;
   flex-direction: column;
   gap: 32px;
+}
+
+.dbms-tools-stack {
+  width: 100%;
 }
 
 /* ──────────────────────────────────────────────
@@ -157,9 +161,9 @@ body {
 }
 
 .nav-item.active {
-  background: var(--primary-purple);
+  background: linear-gradient(135deg, var(--primary-purple), var(--secondary-purple));
   color: white;
-  box-shadow: 0 8px 20px rgba(157, 78, 221, 0.3);
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.45);
 }
 
 .nav-item.active:hover {
@@ -266,11 +270,47 @@ body {
 .btn-primary:hover {
   transform: scale(1.02);
   filter: brightness(1.1);
-  box-shadow: 0 8px 25px rgba(157, 78, 221, 0.4);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.55);
 }
 
 .btn-primary:active {
   transform: scale(0.98);
+}
+
+#btn-clear-bike,
+.btn-secondary-outline {
+  background: transparent;
+  border: 1px solid var(--primary-purple);
+  color: var(--primary-purple);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+#btn-clear-bike:hover,
+.btn-secondary-outline:hover {
+  background: rgba(157, 78, 221, 0.12);
+}
+
+#btn-clear-garage,
+.btn-danger-outline {
+  background: rgba(255, 60, 60, 0.1);
+  color: #ff4d4d;
+  border: 1px solid rgba(255, 60, 60, 0.3);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+#btn-clear-garage:hover,
+.btn-danger-outline:hover {
+  background: rgba(248, 113, 113, 0.2);
 }
 
 .btn-text {
@@ -604,4 +644,200 @@ body {
   border-radius: 0 8px 8px 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
+}
+
+/* ============================================================
+   Custom Database Tool Animations
+   ============================================================ */
+
+.nf-step {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeSlideUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseRed {
+  0% { box-shadow: 0 0 0 rgba(255, 60, 60, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(255, 60, 60, 0.8); }
+  100% { box-shadow: 0 0 0 rgba(255, 60, 60, 0.4); }
+}
+
+/* Ensure JS UI hooks securely override hidden states */
+.slide-panel.show {
+  transform: translateX(0) !important;
+}
+
+.panel-overlay.show {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* ──────────────────────────────────────────────
+   11. Bike Dashboard & Garage UI
+   ────────────────────────────────────────────── */
+
+.compact-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.bike-metric-card {
+  position: relative;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.25), rgba(15, 15, 20, 1));
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.bike-metric-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 120% -20%, rgba(248, 250, 252, 0.05), transparent 60%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.metric-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.metric-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fee2e2;
+  text-shadow: 0 0 18px rgba(248, 113, 113, 0.6);
+}
+
+.metric-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.bike-list-placeholder {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+  padding: 18px 16px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.bike-list-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.bike-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle, #fb7185, #991b1b);
+  margin-top: 4px;
+}
+
+.bike-empty-title {
+  font-weight: 600;
+  color: #fecaca;
+}
+
+.bike-empty-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.bike-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  font-size: 13px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.bike-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bike-row-title {
+  font-weight: 600;
+  color: #fee2e2;
+}
+
+.bike-row-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.bike-row-pill {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.6);
+  color: #fecaca;
+}
+
+.bike-row--new {
+  animation: bikeRowIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bike-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(248, 113, 113, 0.45);
+  border-color: rgba(248, 250, 252, 0.6);
+}
+
+@keyframes bikeRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-bikes-pop {
+  animation: bikesPop 0.28s ease-out;
+}
+
+@keyframes bikesPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }

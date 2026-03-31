@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Royal Enfield Bike Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .content-section { display: none; width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 40px; }
+    .content-section.active { display: flex; flex-direction: column; gap: 32px; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="dashboard-layout">
+
+  <!-- MAIN WRAPPER -->
+  <div class="main-wrapper">
+    
+    <!-- TOP NAVBAR -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <h1 class="page-title">Royal Enfield Bike Management System</h1>
+      </div>
+      <div class="navbar-right">
+        <div id="backend-status-badge" class="success-badge" style="display:flex; align-items:center; gap:8px; padding: 6px 12px; background: rgba(74, 222, 128, 0.1); color: #4ade80; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid rgba(74, 222, 128, 0.2);">
+          <span>●</span> SYSTEM CHECKING...
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT AREA -->
+    <main class="content-area-scroll">
+      
+      <!-- TOP BIKE DASHBOARD -->
+      <section class="content-container" style="margin-bottom: 24px;">
+        <div class="card compact-card-grid">
+          <div class="bike-metric-card">
+            <div class="metric-label">Total Bikes</div>
+            <div class="metric-value">128</div>
+            <div class="metric-sub">Garage & showroom inventory</div>
+          </div>
+          <div class="bike-metric-card">
+            <div class="metric-label">Active Bookings</div>
+            <div class="metric-value">23</div>
+            <div class="metric-sub">Test rides & service slots</div>
+          </div>
+          <div class="bike-metric-card">
+            <div class="metric-label">Customers</div>
+            <div class="metric-value">74</div>
+            <div class="metric-sub">Linked to current schedules</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BIKE QUICK ENTRY (NO BACKEND) + TOOL LAUNCH -->
+      <section class="content-container" style="margin-bottom: 24px;">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="section-title">Bike Garage — Quick Entry (UI Only)</h2>
+          </div>
+          <div class="input-dashboard-grid" style="grid-template-columns: 1.2fr 1.8fr;">
+            <div class="input-col-left">
+              <div class="form-group">
+                <label class="form-label" for="bike-model">BIKE MODEL</label>
+                <input id="bike-model" type="text" class="form-input font-mono" placeholder="Classic 350, Hunter 350, Himalayan 450">
+              </div>
+              <div class="form-group" style="margin-top: 20px;">
+                <label class="form-label" for="bike-category">CATEGORY</label>
+                <input id="bike-category" type="text" class="form-input font-mono" placeholder="Touring, City, Adventure">
+              </div>
+              <div class="action-row" style="margin-top: 24px; gap: 12px;">
+                <button id="btn-add-bike" class="btn-primary" style="width:auto; background: linear-gradient(135deg,#b91c1c,#ef4444);">
+                  <span>➕</span> Add Bike (Frontend Only)
+                </button>
+                <button id="btn-clear-bike" type="button" class="btn-secondary-outline">
+                  Clear
+                </button>
+              </div>
+              <div style="margin-top: 10px;">
+                <button id="btn-clear-garage" type="button" class="btn-danger-outline">
+                  Clear Garage
+                </button>
+              </div>
+            </div>
+            <div class="input-col-right">
+              <div class="form-group h-full">
+                <label class="form-label">GARAGE SNAPSHOT (LOCAL UI)</label>
+                <div id="garage-list" class="bike-list-placeholder">
+                  <div class="bike-list-empty">
+                    <span class="bike-dot"></span>
+                    <div>
+                      <div class="bike-empty-title">No bikes added in this view yet.</div>
+                      <div class="bike-empty-sub">Use the form on the left to mock Royal Enfield entries. This stays on the page and does not hit the backend.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DBMS ACTION BUTTONS (open tools in slide panel) -->
+          <div class="dashboard-action-row" style="margin-top: 28px; display:flex; flex-wrap:wrap; gap:16px;">
+            <button id="btn-open-closure-panel" class="btn-primary" style="background: linear-gradient(135deg,#4b5563,#9ca3af);">
+              <span>📊</span> Compute Closure
+            </button>
+            <button id="btn-open-keys-panel" class="btn-primary" style="background: linear-gradient(135deg,#374151,#f97316);">
+              <span>🔑</span> Find Candidate Keys
+            </button>
+            <button id="btn-open-normalize-panel" class="btn-primary" style="background: linear-gradient(135deg,#111827,#b91c1c);">
+              <span>🛠️</span> Normalize Database
+            </button>
+          </div>
+        </div>
+      </section>
+      <!-- BOTTOM: ADVANCED DBMS TOOLS (No sidebar, no section switching) -->
+      <section class="content-container dbms-tools-stack" style="margin-top: 4px; display:none;">
+        <!-- A. Compute Closure -->
+        <div class="card dbms-tool-card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <h2 class="section-title">Advanced Feature — Compute Closure</h2>
+          </div>
+
+          <div class="input-dashboard-grid">
+            <div class="input-col-left">
+              <div class="form-group">
+                <label class="form-label" for="closure-schema">RELATION SCHEMA</label>
+                <input id="closure-schema" type="text" class="form-input font-mono" placeholder="R(A, B, C...)">
+              </div>
+              <div class="form-group" style="margin-top: 20px;">
+                <label class="form-label" for="closure-attrs">STARTING ATTRIBUTES</label>
+                <input id="closure-attrs" type="text" class="form-input font-mono" placeholder="A, B">
+              </div>
+            </div>
+            <div class="input-col-right">
+              <div class="form-group h-full">
+                <label class="form-label" for="closure-fds">FUNCTIONAL DEPENDENCIES</label>
+                <textarea id="closure-fds" class="form-textarea font-mono" placeholder="A -> B, C&#10;B -> D"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btn-closure" class="btn-primary" style="width: auto;">
+              <span>⚙️</span> Compute Closure
+            </button>
+          </div>
+        </div>
+
+        <!-- B. Candidate Keys -->
+        <div class="card dbms-tool-card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <h2 class="section-title">Advanced Feature — Candidate Keys</h2>
+          </div>
+
+          <div class="input-dashboard-grid">
+            <div class="input-col-left">
+              <div class="form-group">
+                <label class="form-label" for="keys-schema">RELATION SCHEMA</label>
+                <input id="keys-schema" type="text" class="form-input font-mono" placeholder="R(A, B, C...)">
+              </div>
+            </div>
+            <div class="input-col-right">
+              <div class="form-group h-full">
+                <label class="form-label" for="keys-fds">FUNCTIONAL DEPENDENCIES</label>
+                <textarea id="keys-fds" class="form-textarea font-mono" placeholder="A -> B, C&#10;B -> D"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btn-candidate-keys" class="btn-primary" style="width: auto;">
+              <span>🔑</span> Find Candidate Keys
+            </button>
+          </div>
+        </div>
+
+        <!-- C. Normalization -->
+        <div class="card dbms-tool-card">
+          <div class="card-header">
+            <h2 class="section-title">Advanced Feature — Normalization</h2>
+          </div>
+
+          <div class="input-dashboard-grid">
+            <div class="input-col-left">
+              <div class="form-group">
+                <label class="form-label" for="norm-schema">RELATION SCHEMA</label>
+                <input id="norm-schema" type="text" class="form-input font-mono" placeholder="R(A, B, C...)">
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Use plural suffixes for 1NF multi-values (e.g. Phones)</p>
+              </div>
+            </div>
+            <div class="input-col-right">
+              <div class="form-group h-full">
+                <label class="form-label" for="norm-fds">FUNCTIONAL DEPENDENCIES</label>
+                <textarea id="norm-fds" class="form-textarea font-mono" placeholder="A -> B, C&#10;B -> D"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="btn-normalize" class="btn-primary" style="width: auto; background: var(--primary-purple);">
+              <span>🧠</span> Normalize
+            </button>
+          </div>
+        </div>
+      </section>
+
+
+        <!-- PROGRESS SPINNER -->
+        <div id="spinner-container" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(13,13,13,0.8); z-index:999; justify-content:center; align-items:center;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+             <div class="spinner" style="width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary-purple); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+             <span style="color: var(--text-main); font-weight: 500;">Processing request...</span>
+          </div>
+        </div>
+
+    </main>
+
+    <!-- RESULTS SLIDE PANEL -->
+    <div id="panel-overlay" class="panel-overlay"></div>
+    <aside id="slide-panel" class="slide-panel">
+       <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+         <h2 id="panel-title" class="panel-title" style="font-size:18px; font-weight:700; color:white;">Computation Results</h2>
+         <button id="btn-close-panel" style="background:transparent; border:none; color:var(--text-secondary); font-size:24px; cursor:pointer;">✕</button>
+       </div>
+       <div id="panel-content" class="panel-content" style="margin-top:20px; display:flex; flex-direction:column; gap:20px;">
+          <!-- Dynamic content injected here -->
+       </div>
+    </aside>
+
+    <!-- TOASTS -->
+    <div id="toast-container" class="toast-stack" style="position:fixed; bottom:24px; right:24px; display:flex; flex-direction:column; gap:10px; z-index:1000;"></div>
+
+  </div>
+
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .toast { display:flex; align-items:center; gap:12px; padding:12px 20px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.5); color:white; font-size:14px; transition:0.3s ease; }
+    .toast--success { border-left:4px solid #4ade80; }
+    .toast--warning { border-left:4px solid #facc15; }
+    .nav-item { background: transparent; border: none; font-family: inherit; width: 100%; text-align: left; cursor: pointer; }
+    .nav-item.active { background: var(--bg-input); color: white; border-left: 3px solid var(--primary-purple); }
+    .input-col-left, .input-col-right { display: flex; flex-direction: column; }
+    .form-textarea { min-height: 140px; resize: vertical; }
+  </style>
+
+  <script src="/static/script.js" defer></script>
+</body>
+</html>

@@ -27,6 +27,8 @@ from candidate_keys import (
     get_non_prime_attributes,
 )
 from normalization import (
+    check_1nf_detailed,
+    decompose_1nf,
     is_in_2nf,
     is_in_3nf,
     is_in_bcnf,
@@ -45,7 +47,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
-app = Flask(__name__)
+import os
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+app = Flask(__name__, 
+            template_folder=frontend_dir,
+            static_folder=os.path.join(frontend_dir, "static"))
 CORS(app)  # Allow all origins (needed for file:// and localhost dev)
 
 
@@ -388,10 +394,10 @@ def route_normalize():
             return jsonify({"success": False, "error": "Field 'schema' is required."}), 400
         if not fd_strings:
             return jsonify({"success": False, "error": "Field 'fds' is required and must not be empty."}), 400
-        if target not in ("2NF", "3NF", "BCNF", "ALL"):
+        if target not in ("1NF", "2NF", "3NF", "BCNF", "ALL"):
             return jsonify({
                 "success": False,
-                "error": f"Invalid target '{target}'. Must be one of: 2NF, 3NF, BCNF, ALL.",
+                "error": f"Invalid target '{target}'. Must be one of: 1NF, 2NF, 3NF, BCNF, ALL.",
             }), 400
 
         relation_name, schema = parse_schema(schema_str)
@@ -399,6 +405,30 @@ def route_normalize():
         candidate_keys = find_candidate_keys(schema, fds, verbose=False)
 
         results: dict = {}
+
+        # ── 1NF ──────────────────────────────────────────────────────────────
+        if target in ("1NF", "ALL"):
+            check_1nf_res = check_1nf_detailed(schema)
+            already_1nf = check_1nf_res["is_1nf"]
+            violations_1nf = [v["message"] for v in check_1nf_res["violations"]]
+
+            if already_1nf:
+                rels_1nf = [{
+                    "name": relation_name,
+                    "attributes": sorted(schema),
+                    "primary_key": sorted(candidate_keys[0]) if candidate_keys else [],
+                    "fds": [{"lhs": sorted(l), "rhs": sorted(r)} for l, r in fds],
+                }]
+            else:
+                raw_1nf = decompose_1nf(schema, fds, candidate_keys, relation_name=relation_name)
+                rels_1nf = [relation_to_json(r) for r in raw_1nf]
+
+            results["1NF"] = {
+                "already_satisfied": already_1nf,
+                "violations": violations_1nf,
+                "problematic_attributes": [a for v in check_1nf_res["violations"] for a in v["attributes"]],
+                "relations": rels_1nf,
+            }
 
         # ── 2NF ──────────────────────────────────────────────────────────────
         if target in ("2NF", "ALL"):
@@ -513,8 +543,20 @@ def test():
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import socket
+
+    def is_port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('localhost', port)) == 0
+
+    port = 5000
+    if is_port_in_use(port):
+        logger.warning("Port %d is busy, switching to 5001", port)
+        port = 5001
+    
     logger.info("="*55)
     logger.info(" DBMS Normalization API + UI")
-    logger.info(" Running on http://127.0.0.1:5000")
+    logger.info(f" Local:   http://127.0.0.1:{port}")
+    logger.info(f" Network: http://0.0.0.0:{port}")
     logger.info("="*55)
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    app.run(debug=True, use_reloader=False, host="0.0.0.0", port=port)
